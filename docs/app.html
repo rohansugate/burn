@@ -160,23 +160,23 @@
     </nav>
 
     <h1>Run it <em>here</em>.</h1>
-    <p class="lede">Upload a video. Whisper translates speech to English in your browser, then captions are burned into the picture. Nothing is uploaded to a server.</p>
+    <p class="lede">Paste a link or upload a video. Whisper translates speech to English in your browser, then captions are burned into the picture. Nothing is uploaded to a server.</p>
     <p class="hint">First run downloads a small speech model (~75&nbsp;MB). Short clips work best. For YouTube-style links or long files, <a href="https://github.com/rohansugate/burn#run">run the local app</a>.</p>
 
     <div class="tabs">
-      <button type="button" class="tab active" data-tab="upload">Upload</button>
-      <button type="button" class="tab" data-tab="url">URL</button>
+      <button type="button" class="tab active" data-tab="url">URL</button>
+      <button type="button" class="tab" data-tab="upload">Upload</button>
       <button type="button" class="tab" data-tab="safe">Safe Download</button>
     </div>
 
-    <div class="panel active" id="panelUpload">
-      <label for="file">Video file</label>
-      <input id="file" type="file" accept="video/*,.mp4,.webm,.mov,.mkv,.m4v" />
-    </div>
-    <div class="panel" id="panelUrl">
+    <div class="panel active" id="panelUrl">
       <label for="url">Direct media URL</label>
       <input id="url" type="url" placeholder="https://…/video.mp4" autocomplete="off" spellcheck="false" />
       <p class="hint">Most sites block browser downloads (CORS). A direct <code>.mp4</code> / <code>.webm</code> link may work. Paste-a-page links need the local app.</p>
+    </div>
+    <div class="panel" id="panelUpload">
+      <label for="file">Video file</label>
+      <input id="file" type="file" accept="video/*,.mp4,.webm,.mov,.mkv,.m4v" />
     </div>
     <div class="panel" id="panelSafe">
       <label for="safeUrl">Page or download URL</label>
@@ -249,7 +249,7 @@
     const steps = [...document.querySelectorAll(".step")];
 
     let transcriber = null;
-    let mode = "upload";
+    let mode = "url";
     let resultUrl = null;
     let safePassedUrl = "";
 

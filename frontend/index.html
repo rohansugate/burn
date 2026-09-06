@@ -793,8 +793,8 @@
       <div class="composer">
         <div class="tabs">
           <button type="button" class="tab active" data-tab="url" id="tabUrl">URL</button>
-          <button type="button" class="tab" data-tab="safe" id="tabSafe">Safe Download</button>
           <button type="button" class="tab" data-tab="upload" id="tabUpload">Upload</button>
+          <button type="button" class="tab" data-tab="safe" id="tabSafe">Safe Download</button>
         </div>
 
         <div class="tab-panel" id="panelUrl">
@@ -806,6 +806,15 @@
           <p id="urlStatus" class="url-status"></p>
         </div>
 
+        <div class="tab-panel" id="panelUpload" style="display:none">
+          <p class="panel-hint">Choose a local video file from your device. We’ll translate speech and burn subtitles directly.</p>
+          <div class="file-row">
+            <input id="videoFile" type="file" accept=".mp4,.mkv,.webm,.mov,.avi,.m4v" />
+            <button type="button" class="btn btn-tiny" id="uploadBtn">Upload &amp; subtitle</button>
+          </div>
+          <p id="uploadStatus" class="url-status"></p>
+        </div>
+
         <div class="tab-panel" id="panelSafe" style="display:none">
           <p class="panel-hint">Paste any page or download link. We’ll check it for safety before downloading and burning subtitles.</p>
           <div class="url-field">
@@ -815,15 +824,6 @@
           <button type="button" class="btn btn-ghost" id="safetyCheckBtn">Check safety</button>
           <p id="safetyStatus" class="url-status"></p>
           <button type="button" class="btn btn-primary" id="safeConvertBtn" disabled>Download &amp; subtitle</button>
-        </div>
-
-        <div class="tab-panel" id="panelUpload" style="display:none">
-          <p class="panel-hint">Choose a local video file from your device. We’ll translate speech and burn subtitles directly.</p>
-          <div class="file-row">
-            <input id="videoFile" type="file" accept=".mp4,.mkv,.webm,.mov,.avi,.m4v" />
-            <button type="button" class="btn btn-tiny" id="uploadBtn">Upload &amp; subtitle</button>
-          </div>
-          <p id="uploadStatus" class="url-status"></p>
         </div>
 
         <div class="actions">
