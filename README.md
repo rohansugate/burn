@@ -13,7 +13,7 @@ Paste a link, wait through verify → fetch → audio → translate → burn, th
 
 ## Run in the browser
 
-Open **[https://rohansugate.github.io/burn/app.html](https://rohansugate.github.io/burn/app.html)**, upload a video, and Burn will:
+Open **[https://rohansugate.github.io/burn/app.html](https://rohansugate.github.io/burn/app.html)** and pick **Upload**, **URL**, or **Safe Download**. Safe Download checks the link first (scheme, host, dangerous file types, and a public malware list when the browser allows it), then burns captions if it passes.
 
 1. Extract audio in your tab
 2. Translate speech to English with Whisper (downloaded into the browser)
