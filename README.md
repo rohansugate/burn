@@ -1,5 +1,7 @@
 # Burn
 
+**Project site:** [https://rohansugate.github.io/burn](https://rohansugate.github.io/burn)
+
 A local web app that takes a video URL or a file from your computer, translates the speech to English, and burns those captions into the picture.
 
 Paste a link, wait through verify → fetch → audio → translate → burn, then download the subtitled file. Nothing is uploaded to a hosted service; processing runs on your machine.
