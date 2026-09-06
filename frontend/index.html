@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Burn — Subtitle Burn-In</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("burn-theme");
+        var theme = saved || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Syne:wght@500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js"></script>
+  <style>
+    :root {
+      --ink: #14110e;
+      --ink-soft: #1c1814;
+      --paper: #f3ebe0;
+      --paper-dim: #c9bba8;
+      --muted: #8a7d6c;
+      --line: rgba(243, 235, 224, 0.12);
+      --line-strong: rgba(243, 235, 224, 0.22);
+      --ember: #e07a3a;
+      --ember-hot: #f0a05a;
+      --ember-glow: rgba(224, 122, 58, 0.35);
+      --ok: #6dbf8a;
+      --err: #e06b6b;
+      --field: rgba(20, 17, 14, 0.55);
+      --btn-tiny-bg: rgba(243, 235, 224, 0.06);
+      --btn-tiny-bg-hover: rgba(243, 235, 224, 0.12);
+      --track-bg: rgba(243, 235, 224, 0.08);
+      --vignette: radial-gradient(ellipse 80% 70% at 50% 40%, transparent 20%, rgba(10, 8, 6, 0.75) 100%);
+      --bars: linear-gradient(90deg, rgba(0,0,0,0.45) 0, transparent 4%, transparent 96%, rgba(0,0,0,0.45) 100%);
+      --bars-opacity: 0.5;
+      --grain-opacity: 0.07;
+      --blob-a: radial-gradient(circle, #c45a28 0%, transparent 68%);
+      --blob-b: radial-gradient(circle, #3a5a6e 0%, transparent 70%);
+      --blob-c: radial-gradient(circle, #8b4518 0%, transparent 65%);
+      --blob-a-opacity: 0.55;
+      --blob-b-opacity: 0.4;
+      --blob-c-opacity: 0.35;
+      --icon-stroke: #f0a05a;
+      --icon-frame: #f3ebe0;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      color-scheme: dark;
+    }
+
+    html[data-theme="light"] {
+      --ink: #f4f0e8;
+      --ink-soft: #ebe4d8;
+      --paper: #1c1712;
+      --paper-dim: #5c5348;
+      --muted: #8a8074;
+      --line: rgba(28, 23, 18, 0.1);
+      --line-strong: rgba(28, 23, 18, 0.18);
+      --ember: #d4682e;
+      --ember-hot: #e8893f;
+      --ember-glow: rgba(212, 104, 46, 0.28);
+      --ok: #2f8f5b;
+      --err: #c94a4a;
+      --field: rgba(255, 252, 247, 0.72);
+      --btn-tiny-bg: rgba(28, 23, 18, 0.04);
+      --btn-tiny-bg-hover: rgba(28, 23, 18, 0.08);
+      --track-bg: rgba(28, 23, 18, 0.06);
+      --vignette: radial-gradient(ellipse 85% 75% at 50% 35%, transparent 25%, rgba(210, 198, 178, 0.45) 100%);
+      --bars: linear-gradient(90deg, rgba(180, 165, 140, 0.35) 0, transparent 5%, transparent 95%, rgba(180, 165, 140, 0.35) 100%);
+      --bars-opacity: 0.35;
+      --grain-opacity: 0.045;
+      --blob-a: radial-gradient(circle, #f0a060 0%, transparent 68%);
+      --blob-b: radial-gradient(circle, #7eb0c8 0%, transparent 70%);
+      --blob-c: radial-gradient(circle, #e8c99a 0%, transparent 65%);
+      --blob-a-opacity: 0.5;
+      --blob-b-opacity: 0.45;
+      --blob-c-opacity: 0.4;
+      --icon-stroke: #d4682e;
+      --icon-frame: #1c1712;
+      color-scheme: light;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      color: var(--paper);
+      background: var(--ink);
+      overflow-x: hidden;
+      transition: background 0.35s ease, color 0.35s ease;
+    }
+
+    /* Full-bleed shader-like atmosphere */
+    .atmosphere {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+      background: var(--ink);
+      transition: background 0.35s ease;
+    }
+
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      will-change: transform;
+    }
+
+    .blob-a {
+      width: min(70vw, 640px);
+      height: min(70vw, 640px);
+      top: -18%;
+      left: -12%;
+      background: var(--blob-a);
+      opacity: var(--blob-a-opacity);
+    }
+
+    .blob-b {
+      width: min(55vw, 520px);
+      height: min(55vw, 520px);
+      top: 35%;
+      right: -18%;
+      background: var(--blob-b);
+      opacity: var(--blob-b-opacity);
+    }
+
+    .blob-c {
+      width: min(45vw, 420px);
+      height: min(45vw, 420px);
+      bottom: -10%;
+      left: 30%;
+      background: var(--blob-c);
+      opacity: var(--blob-c-opacity);
+    }
+
+    .grain {
+      position: absolute;
+      inset: 0;
+      opacity: var(--grain-opacity);
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px;
+      mix-blend-mode: overlay;
+    }
+
+    .vignette {
+      position: absolute;
+      inset: 0;
+      background: var(--vignette);
+    }
+
+    .film-bars {
+      position: absolute;
+      inset: 0;
+      background: var(--bars);
+      opacity: var(--bars-opacity);
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: clamp(16px, 3vw, 28px);
+      right: clamp(16px, 3vw, 28px);
+      z-index: 2;
+      appearance: none;
+      border: 1px solid var(--line-strong);
+      background: var(--field);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: var(--paper);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: border-color 0.2s ease, transform 0.2s var(--ease), background 0.2s ease;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--ember);
+      transform: scale(1.04);
+    }
+
+    .theme-toggle:active { transform: scale(0.97); }
+
+    .theme-toggle svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .theme-toggle .icon-sun { display: none; }
+    .theme-toggle .icon-moon { display: block; }
+
+    html[data-theme="light"] .theme-toggle .icon-sun { display: block; }
+    html[data-theme="light"] .theme-toggle .icon-moon { display: none; }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: clamp(20px, 4vw, 48px);
+    }
+
+    .stage {
+      width: min(560px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* Brand — hero-level */
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-family: "Syne", sans-serif;
+      font-weight: 800;
+      font-size: clamp(2.6rem, 8vw, 3.75rem);
+      letter-spacing: -0.045em;
+      line-height: 0.92;
+      color: var(--paper);
+    }
+
+    .brand-name em {
+      font-family: "Instrument Serif", serif;
+      font-style: italic;
+      font-weight: 400;
+      color: var(--ember-hot);
+      letter-spacing: -0.02em;
+    }
+
+    .lede {
+      font-size: 1.05rem;
+      line-height: 1.5;
+      color: var(--paper-dim);
+      max-width: 36ch;
+    }
+
+    /* Primary interaction — not a card */
+    .composer {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .url-field {
+      position: relative;
+    }
+
+    .url-field label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    .url-field input {
+      width: 100%;
+      appearance: none;
+      border: 1px solid var(--line-strong);
+      background: var(--field);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: var(--paper);
+      border-radius: 14px;
+      padding: 18px 20px;
+      font-family: inherit;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+      transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+    }
+
+    .url-field input::placeholder {
+      color: var(--muted);
+    }
+
+    .url-field input:focus {
+      outline: none;
+      border-color: var(--ember);
+      box-shadow: 0 0 0 3px var(--ember-glow);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      appearance: none;
+      border: 1px solid var(--line-strong);
+      background: var(--field);
+      color: var(--paper-dim);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .tab.active {
+      background: linear-gradient(135deg, var(--ember-hot) 0%, var(--ember) 55%, #c45a28 100%);
+      color: #1a1008;
+      border-color: transparent;
+    }
+
+    .tab:not(.active):hover {
+      color: var(--paper);
+      border-color: var(--paper-dim);
+    }
+
+    .tab-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel-hint {
+      font-size: 0.85rem;
+      line-height: 1.4;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .url-status {
+      font-size: 0.82rem;
+      line-height: 1.4;
+      color: var(--muted);
+      min-height: 1.2em;
+      margin-top: 6px;
+    }
+
+    .url-status.ok { color: var(--ok); }
+    .url-status.error { color: var(--err); }
+
+    .file-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .file-row input[type="file"] {
+      flex: 1;
+      min-width: 160px;
+      font-size: 0.82rem;
+      color: var(--paper-dim);
+    }
+
+    .file-row input[type="file"]::file-selector-button {
+      appearance: none;
+      border: 1px solid var(--line-strong);
+      background: var(--btn-tiny-bg);
+      color: var(--paper);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-right: 12px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      font-family: "Syne", sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: -0.02em;
+      cursor: pointer;
+      border-radius: 12px;
+      padding: 15px 22px;
+      transition: transform 0.2s var(--ease), background 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      flex: 1;
+      min-width: 180px;
+      background: linear-gradient(135deg, var(--ember-hot) 0%, var(--ember) 55%, #c45a28 100%);
+      color: #1a1008;
+      box-shadow: 0 8px 28px rgba(224, 122, 58, 0.28);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      filter: brightness(1.06);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--paper-dim);
+      border: 1px solid var(--line-strong);
+      padding: 14px 16px;
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      color: var(--paper);
+      border-color: var(--paper-dim);
+    }
+
+    .btn-ghost:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-tiny {
+      font-family: "DM Sans", sans-serif;
+      font-weight: 600;
+      font-size: 0.8rem;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: var(--btn-tiny-bg);
+      color: var(--paper);
+      border: 1px solid var(--line);
+    }
+
+    .btn-tiny:hover:not(:disabled) {
+      background: var(--btn-tiny-bg-hover);
+    }
+
+    /* Pipeline steps */
+    .pipeline {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .step-bar {
+      height: 3px;
+      border-radius: 999px;
+      background: var(--line);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .step-bar::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, var(--ember), var(--ember-hot));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.45s var(--ease);
+    }
+
+    .step.active .step-bar::after { transform: scaleX(0.55); }
+    .step.done .step-bar::after { transform: scaleX(1); }
+    .step.active .step-bar::after {
+      animation: pulse-fill 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse-fill {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+
+    .step-label {
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.25s ease;
+    }
+
+    .step.active .step-label,
+    .step.done .step-label {
+      color: var(--paper);
+    }
+
+    /* Progress + status */
+    .feedback {
+      margin-top: 22px;
+      min-height: 1.2em;
+    }
+
+    #status {
+      font-size: 0.92rem;
+      line-height: 1.45;
+      color: var(--paper-dim);
+    }
+
+    #status.error { color: var(--err); }
+    #status.ok { color: var(--ok); }
+
+    .progress-wrap {
+      display: none;
+      margin-top: 14px;
+    }
+
+    .progress-wrap.visible { display: block; }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .progress-meta strong {
+      font-family: "Syne", sans-serif;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--paper);
+      font-size: 0.95rem;
+    }
+
+    .progress-track {
+      height: 8px;
+      border-radius: 999px;
+      background: var(--track-bg);
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--ember) 0%, var(--ember-hot) 50%, #6dbf8a 100%);
+      background-size: 200% 100%;
+      transition: width 0.4s var(--ease);
+      animation: shimmer 2.4s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+
+    /* Result */
+    #result {
+      display: none;
+      margin-top: 18px;
+      padding: 18px 0 0;
+      border-top: 1px solid var(--line);
+    }
+
+    #result.visible { display: block; }
+
+    .result-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .result-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .result-copy span {
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ok);
+      font-weight: 600;
+    }
+
+    .result-copy a {
+      font-family: "Syne", sans-serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--paper);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .result-copy a:hover {
+      color: var(--ember-hot);
+      border-bottom-color: var(--ember-hot);
+    }
+
+    /* Advanced: cookies */
+    .advanced {
+      margin-top: 32px;
+      border-top: 1px solid var(--line);
+      padding-top: 4px;
+    }
+
+    .advanced summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 500;
+      user-select: none;
+      transition: color 0.2s ease;
+    }
+
+    .advanced summary::-webkit-details-marker { display: none; }
+
+    .advanced summary:hover { color: var(--paper-dim); }
+
+    .advanced[open] summary { color: var(--paper); }
+
+    .chevron {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.25s var(--ease);
+      opacity: 0.7;
+    }
+
+    .advanced[open] .chevron { transform: rotate(180deg); }
+
+    .advanced-body {
+      padding-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .file-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .file-row input[type="file"] {
+      flex: 1;
+      min-width: 160px;
+      font-size: 0.82rem;
+      color: var(--paper-dim);
+    }
+
+    .file-row input[type="file"]::file-selector-button {
+      appearance: none;
+      border: 1px solid var(--line-strong);
+      background: var(--btn-tiny-bg);
+      color: var(--paper);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-right: 12px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .hint code {
+      font-size: 0.78em;
+      color: var(--paper-dim);
+    }
+
+    .cookie-status {
+      font-size: 0.8rem;
+      color: var(--paper-dim);
+    }
+
+    .cookie-status.ready { color: var(--ok); }
+
+    @media (max-width: 480px) {
+      .pipeline {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+      }
+
+      .step-label {
+        font-size: 0.58rem;
+        letter-spacing: 0.02em;
+      }
+
+      .brand-name {
+        font-size: 2.4rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .blob, .progress-fill, .step.active .step-bar::after {
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true">
+    <div class="blob blob-a" id="blobA"></div>
+    <div class="blob blob-b" id="blobB"></div>
+    <div class="blob blob-c" id="blobC"></div>
+    <div class="grain"></div>
+    <div class="vignette"></div>
+    <div class="film-bars"></div>
+  </div>
+
+  <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to light theme" title="Toggle theme">
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 7 7 0 0 0 20 14.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+    </svg>
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </button>
+
+  <div class="shell">
+    <div class="stage" id="stage">
+      <header class="brand">
+        <div class="brand-mark">
+          <svg class="brand-icon" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+            <rect x="4" y="8" width="32" height="24" rx="3" stroke="var(--icon-stroke)" stroke-width="1.5" opacity="0.9"/>
+            <path d="M10 20h20M14 15v10M26 15v10" stroke="var(--icon-frame)" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="20" cy="20" r="3.5" fill="var(--ember)"/>
+          </svg>
+          <h1 class="brand-name">Burn<em>.</em></h1>
+        </div>
+        <p class="lede">
+          Paste a media link. We download it, translate speech to English, and burn captions into the picture.
+        </p>
+      </header>
+
+      <div class="composer">
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="url" id="tabUrl">URL</button>
+          <button type="button" class="tab" data-tab="safe" id="tabSafe">Safe Download</button>
+          <button type="button" class="tab" data-tab="upload" id="tabUpload">Upload</button>
+        </div>
+
+        <div class="tab-panel" id="panelUrl">
+          <p class="panel-hint">Paste a supported media link. We’ll verify it, download it, and burn subtitles.</p>
+          <div class="url-field">
+            <label for="url">Media URL</label>
+            <input id="url" type="url" placeholder="https://…" autocomplete="off" spellcheck="false" />
+          </div>
+          <p id="urlStatus" class="url-status"></p>
+        </div>
+
+        <div class="tab-panel" id="panelSafe" style="display:none">
+          <p class="panel-hint">Paste any page or download link. We’ll check it for safety before downloading and burning subtitles.</p>
+          <div class="url-field">
+            <label for="safeUrl">Page or download URL</label>
+            <input id="safeUrl" type="url" placeholder="https://…" autocomplete="off" spellcheck="false" />
+          </div>
+          <button type="button" class="btn btn-ghost" id="safetyCheckBtn">Check safety</button>
+          <p id="safetyStatus" class="url-status"></p>
+          <button type="button" class="btn btn-primary" id="safeConvertBtn" disabled>Download &amp; subtitle</button>
+        </div>
+
+        <div class="tab-panel" id="panelUpload" style="display:none">
+          <p class="panel-hint">Choose a local video file from your device. We’ll translate speech and burn subtitles directly.</p>
+          <div class="file-row">
+            <input id="videoFile" type="file" accept=".mp4,.mkv,.webm,.mov,.avi,.m4v" />
+            <button type="button" class="btn btn-tiny" id="uploadBtn">Upload &amp; subtitle</button>
+          </div>
+          <p id="uploadStatus" class="url-status"></p>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-ghost" id="checkBtn">Check</button>
+          <button type="button" class="btn btn-primary" id="convertBtn" disabled>Download &amp; subtitle</button>
+        </div>
+      </div>
+
+      <nav class="pipeline" id="pipeline" aria-label="Processing stages">
+        <div class="step" data-stage="verifying"><div class="step-bar"></div><span class="step-label">Verify</span></div>
+        <div class="step" data-stage="downloading"><div class="step-bar"></div><span class="step-label">Fetch</span></div>
+        <div class="step" data-stage="extracting"><div class="step-bar"></div><span class="step-label">Audio</span></div>
+        <div class="step" data-stage="translating"><div class="step-bar"></div><span class="step-label">Translate</span></div>
+        <div class="step" data-stage="burning"><div class="step-bar"></div><span class="step-label">Burn</span></div>
+      </nav>
+
+      <div class="feedback">
+        <p id="status"></p>
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-meta">
+            <span id="progressStage">Working…</span>
+            <strong id="progressPct">0%</strong>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="result">
+        <div class="result-inner">
+          <div class="result-copy">
+            <span>Ready</span>
+            <a id="downloadLink" href="#" download>Download subtitled video</a>
+          </div>
+        </div>
+      </div>
+
+      <details class="advanced" id="advanced">
+        <summary>
+          <span>Session cookies <span id="cookiePill" style="opacity:0.6">(optional)</span></span>
+          <svg class="chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </summary>
+        <div class="advanced-body">
+          <p class="hint">
+            Netscape <code>cookies.txt</code> for sites that need a logged-in session.
+          </p>
+          <div class="file-row">
+            <input id="cookies" type="file" accept=".txt,.cookies,text/plain" />
+            <button type="button" class="btn btn-tiny" id="uploadCookiesBtn">Save</button>
+            <button type="button" class="btn btn-tiny" id="clearCookiesBtn">Clear</button>
+          </div>
+          <p class="cookie-status" id="cookieStatus">Checking cookie status…</p>
+
+          <p class="hint" style="margin-top:14px">
+            Use your real Chrome profile to reuse cookies and bypass Cloudflare challenges.
+            On macOS, this is usually <code>~/Library/Application Support/Google/Chrome/Default</code>.
+          </p>
+          <div class="file-row">
+            <input id="browserProfilePath" type="text" placeholder="/Users/you/Library/Application Support/Google/Chrome/Default" />
+            <button type="button" class="btn btn-tiny" id="saveBrowserProfileBtn">Save</button>
+            <button type="button" class="btn btn-tiny" id="clearBrowserProfileBtn">Clear</button>
+          </div>
+          <p class="cookie-status" id="browserProfileStatus">No browser profile configured.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    const urlInput = document.getElementById("url");
+    const checkBtn = document.getElementById("checkBtn");
+    const convertBtn = document.getElementById("convertBtn");
+    const statusEl = document.getElementById("status");
+    const urlStatus = document.getElementById("urlStatus");
+    const resultEl = document.getElementById("result");
+    const downloadLink = document.getElementById("downloadLink");
+    const cookiesInput = document.getElementById("cookies");
+    const uploadCookiesBtn = document.getElementById("uploadCookiesBtn");
+    const clearCookiesBtn = document.getElementById("clearCookiesBtn");
+    const cookieStatus = document.getElementById("cookieStatus");
+    const browserProfilePath = document.getElementById("browserProfilePath");
+    const saveBrowserProfileBtn = document.getElementById("saveBrowserProfileBtn");
+    const clearBrowserProfileBtn = document.getElementById("clearBrowserProfileBtn");
+    const browserProfileStatus = document.getElementById("browserProfileStatus");
+    const progressWrap = document.getElementById("progressWrap");
+    const progressFill = document.getElementById("progressFill");
+    const progressPct = document.getElementById("progressPct");
+    const progressStage = document.getElementById("progressStage");
+    const pipeline = document.getElementById("pipeline");
+    const stageEls = Array.from(pipeline.querySelectorAll(".step"));
+    const tabUrl = document.getElementById("tabUrl");
+    const tabSafe = document.getElementById("tabSafe");
+    const tabUpload = document.getElementById("tabUpload");
+    const panelUrl = document.getElementById("panelUrl");
+    const panelSafe = document.getElementById("panelSafe");
+    const panelUpload = document.getElementById("panelUpload");
+    const safeUrlInput = document.getElementById("safeUrl");
+    const safetyCheckBtn = document.getElementById("safetyCheckBtn");
+    const safetyStatus = document.getElementById("safetyStatus");
+    const safeConvertBtn = document.getElementById("safeConvertBtn");
+    const videoFile = document.getElementById("videoFile");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const uploadStatus = document.getElementById("uploadStatus");
+
+    const STAGE_ORDER = ["verifying", "downloading", "extracting", "translating", "burning"];
+
+    let pollTimer = null;
+
+    function setStatus(text, kind) {
+      statusEl.textContent = text;
+      statusEl.className = kind || "";
+    }
+
+    function setPipeline(stage) {
+      if (!stage || stage === "queued") {
+        stageEls.forEach((el) => el.classList.remove("active", "done"));
+        return;
+      }
+      if (stage === "done") {
+        stageEls.forEach((el) => {
+          el.classList.remove("active");
+          el.classList.add("done");
+        });
+        return;
+      }
+      if (stage === "error") return;
+
+      const idx = STAGE_ORDER.indexOf(stage);
+      stageEls.forEach((el, i) => {
+        const key = el.dataset.stage;
+        el.classList.toggle("done", idx > STAGE_ORDER.indexOf(key));
+        el.classList.toggle("active", key === stage);
+      });
+    }
+
+    async function checkUrl() {
+      const url = (urlInput.value || "").trim();
+      if (!url) {
+        urlStatus.textContent = "Paste a URL first.";
+        urlStatus.className = "error";
+        convertBtn.disabled = true;
+        return;
+      }
+
+      checkBtn.disabled = true;
+      urlStatus.textContent = "Checking…";
+      urlStatus.className = "";
+
+      try {
+        const res = await fetch("/check-url/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `Request failed (HTTP ${res.status}).`);
+
+        if (data.ok) {
+          urlStatus.textContent = data.message || "URL is supported and ready.";
+          urlStatus.className = "ok";
+          convertBtn.disabled = false;
+        } else {
+          urlStatus.textContent = data.message || "This URL is not supported.";
+          urlStatus.className = "error";
+          convertBtn.disabled = true;
+        }
+      } catch (err) {
+        urlStatus.textContent = err.message || String(err);
+        urlStatus.className = "error";
+        convertBtn.disabled = true;
+      } finally {
+        checkBtn.disabled = false;
+      }
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === tab));
+      panelUrl.style.display = tab === "url" ? "flex" : "none";
+      panelSafe.style.display = tab === "safe" ? "flex" : "none";
+      panelUpload.style.display = tab === "upload" ? "flex" : "none";
+      checkBtn.style.display = tab === "url" ? "inline-flex" : "none";
+      convertBtn.style.display = tab === "url" ? "inline-flex" : "none";
+      safeConvertBtn.style.display = tab === "safe" ? "inline-flex" : "none";
+      safeConvertBtn.disabled = true;
+      safetyStatus.textContent = "";
+      safetyStatus.className = "";
+      urlStatus.textContent = "";
+      urlStatus.className = "";
+    }
+
+    async function runSafetyCheck() {
+      const url = (safeUrlInput.value || "").trim();
+      if (!url) {
+        safetyStatus.textContent = "Paste a URL first.";
+        safetyStatus.className = "error";
+        safeConvertBtn.disabled = true;
+        return;
+      }
+
+      safetyCheckBtn.disabled = true;
+      safetyStatus.textContent = "Checking…";
+      safetyStatus.className = "";
+
+      try {
+        const res = await fetch("/safety-check/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `Request failed (HTTP ${res.status}).`);
+
+        const checks = Array.isArray(data.checks) ? data.checks : [];
+        const failed = checks.filter((c) => !c.ok);
+        const vtNote = checks.find((c) => c.name === "virustotal");
+
+        if (data.ok && failed.length === 0) {
+          safetyStatus.textContent = data.message || "URL looks safe.";
+          safetyStatus.className = "ok";
+          safeConvertBtn.disabled = false;
+        } else {
+          const reasons = failed.map((c) => c.message).filter(Boolean);
+          const extra = vtNote && !vtNote.ok ? ` ${vtNote.message}` : "";
+          safetyStatus.textContent = (reasons.join("; ") || "Potentially unsafe.") + extra;
+          safetyStatus.className = "error";
+          safeConvertBtn.disabled = true;
+        }
+      } catch (err) {
+        safetyStatus.textContent = err.message || String(err);
+        safetyStatus.className = "error";
+        safeConvertBtn.disabled = true;
+      } finally {
+        safetyCheckBtn.disabled = false;
+      }
+    }
+
+    async function safeDownload() {
+      const url = (safeUrlInput.value || "").trim();
+      if (!url) {
+        safetyStatus.textContent = "Paste a URL first.";
+        safetyStatus.className = "error";
+        return;
+      }
+
+      safeConvertBtn.disabled = true;
+      safetyStatus.textContent = "Starting safe download…";
+      safetyStatus.className = "";
+
+      try {
+        const res = await fetch("/safe-download/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `Request failed (HTTP ${res.status}).`);
+
+        const jobId = data.job_id;
+        if (!jobId) throw new Error("Server did not return a job id.");
+
+        stopPolling();
+        resultEl.classList.remove("visible");
+        resultEl.style.display = "none";
+        setProgress(0, "Starting…", "queued");
+        setStatus("Starting job…");
+
+        await pollJob(jobId);
+        pollTimer = setInterval(async () => {
+          try {
+            const done = await pollJob(jobId);
+            if (done) stopPolling();
+          } catch (err) {
+            stopPolling();
+            setStatus(err.message || String(err), "error");
+            safeConvertBtn.disabled = false;
+          }
+        }, 1000);
+      } catch (err) {
+        safetyStatus.textContent = err.message || String(err);
+        safetyStatus.className = "error";
+      } finally {
+        safeConvertBtn.disabled = false;
+      }
+    }
+
+    async function uploadVideo() {
+      const file = videoFile.files && videoFile.files[0];
+      if (!file) {
+        uploadStatus.textContent = "Choose a video file first.";
+        uploadStatus.className = "error";
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      uploadStatus.textContent = "Uploading…";
+      uploadStatus.className = "";
+
+      try {
+        const form = new FormData();
+        form.append("file", file);
+
+        const res = await fetch("/upload/", {
+          method: "POST",
+          body: form,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `Upload failed (HTTP ${res.status}).`);
+
+        const jobId = data.job_id;
+        if (!jobId) throw new Error("Server did not return a job id.");
+
+        uploadStatus.textContent = "Upload complete. Processing…";
+        uploadStatus.className = "ok";
+
+        stopPolling();
+        resultEl.classList.remove("visible");
+        resultEl.style.display = "none";
+        setProgress(0, "Starting…", "queued");
+        setStatus("Starting job…");
+
+        await pollJob(jobId);
+        pollTimer = setInterval(async () => {
+          try {
+            const done = await pollJob(jobId);
+            if (done) stopPolling();
+          } catch (err) {
+            stopPolling();
+            setStatus(err.message || String(err), "error");
+            uploadBtn.disabled = false;
+          }
+        }, 1000);
+      } catch (err) {
+        uploadStatus.textContent = err.message || String(err);
+        uploadStatus.className = "error";
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    }
+
+    function setProgress(percent, message, stage) {
+      const pct = Math.max(0, Math.min(100, Number(percent) || 0));
+      progressWrap.classList.add("visible");
+      progressFill.style.width = pct + "%";
+      progressPct.textContent = Math.round(pct) + "%";
+      progressStage.textContent = message || "Working…";
+      if (stage) setPipeline(stage);
+    }
+
+    function hideProgress() {
+      progressWrap.classList.remove("visible");
+      progressFill.style.width = "0%";
+      progressPct.textContent = "0%";
+      setPipeline(null);
+    }
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function formatDetail(data, status) {
+      const detail = data && data.detail;
+      if (Array.isArray(detail)) {
+        return detail.map((d) => d.msg || JSON.stringify(d)).join("; ");
+      }
+      if (typeof detail === "string" && detail.trim()) return detail;
+      if (detail && typeof detail === "object") {
+        return detail.msg || detail.message || JSON.stringify(detail);
+      }
+      if (data && data.message) return data.message;
+      return `Request failed (HTTP ${status}).`;
+    }
+
+    async function refreshHealth() {
+      try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        if (data.cookies_configured) {
+          cookieStatus.textContent = "Cookies configured for downloads.";
+          cookieStatus.classList.add("ready");
+        } else {
+          cookieStatus.textContent = "No cookies configured.";
+          cookieStatus.classList.remove("ready");
+        }
+      } catch {
+        cookieStatus.textContent = "Could not reach the server.";
+        cookieStatus.classList.remove("ready");
+      }
+    }
+
+    uploadCookiesBtn.addEventListener("click", async () => {
+      const file = cookiesInput.files && cookiesInput.files[0];
+      if (!file) {
+        setStatus("Choose a cookies.txt file first.", "error");
+        return;
+      }
+      const form = new FormData();
+      form.append("file", file);
+      setStatus("Uploading cookies…");
+      try {
+        const res = await fetch("/cookies/", { method: "POST", body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(formatDetail(data, res.status));
+        setStatus(data.message || "Cookies saved.", "ok");
+        await refreshHealth();
+      } catch (err) {
+        setStatus(err.message || String(err), "error");
+      }
+    });
+
+    clearCookiesBtn.addEventListener("click", async () => {
+      try {
+        const res = await fetch("/cookies/", { method: "DELETE" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(formatDetail(data, res.status));
+        cookiesInput.value = "";
+        setStatus(data.message || "Cookies cleared.", "ok");
+        await refreshHealth();
+      } catch (err) {
+        setStatus(err.message || String(err), "error");
+      }
+    });
+
+    async function refreshBrowserProfile() {
+      try {
+        const res = await fetch("/browser-profile/");
+        const data = await res.json();
+        if (data.ok && data.path) {
+          browserProfilePath.value = data.path;
+          browserProfileStatus.textContent = "Using browser profile: " + data.path;
+          browserProfileStatus.classList.add("ready");
+        } else {
+          browserProfilePath.value = "";
+          browserProfileStatus.textContent = "No browser profile configured.";
+          browserProfileStatus.classList.remove("ready");
+        }
+      } catch {
+        browserProfileStatus.textContent = "Could not reach the server.";
+        browserProfileStatus.classList.remove("ready");
+      }
+    }
+
+    saveBrowserProfileBtn.addEventListener("click", async () => {
+      const path = (browserProfilePath.value || "").trim();
+      if (!path) {
+        browserProfileStatus.textContent = "Paste a profile folder path first.";
+        browserProfileStatus.classList.add("error");
+        browserProfileStatus.classList.remove("ready");
+        return;
+      }
+      try {
+        const res = await fetch("/browser-profile/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(formatDetail(data, res.status));
+        browserProfileStatus.textContent = data.message || "Browser profile saved.";
+        browserProfileStatus.classList.add("ready");
+        browserProfileStatus.classList.remove("error");
+      } catch (err) {
+        browserProfileStatus.textContent = err.message || String(err);
+        browserProfileStatus.classList.add("error");
+        browserProfileStatus.classList.remove("ready");
+      }
+    });
+
+    clearBrowserProfileBtn.addEventListener("click", async () => {
+      try {
+        const res = await fetch("/browser-profile/", { method: "DELETE" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(formatDetail(data, res.status));
+        browserProfilePath.value = "";
+        browserProfileStatus.textContent = "Browser profile cleared.";
+        browserProfileStatus.classList.remove("ready", "error");
+      } catch (err) {
+        browserProfileStatus.textContent = err.message || String(err);
+        browserProfileStatus.classList.add("error");
+      }
+    });
+
+    async function pollJob(jobId) {
+      const res = await fetch("/status/" + encodeURIComponent(jobId));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(formatDetail(data, res.status));
+
+      setProgress(data.percent, data.message || data.stage, data.stage);
+      setStatus(data.message || "Working…");
+
+      if (data.status === "done") {
+        stopPolling();
+        setStatus(data.message || "Done. Your subtitled video is ready.", "ok");
+        setProgress(100, data.message || "Done", "done");
+        downloadLink.href = data.download_url;
+        downloadLink.download = data.filename || "subtitled.mp4";
+        resultEl.classList.add("visible");
+        resultEl.style.display = "block";
+        convertBtn.disabled = false;
+        safeConvertBtn.disabled = false;
+        if (window.gsap) {
+          gsap.fromTo(resultEl, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" });
+        }
+        return true;
+      }
+
+      if (data.status === "error") {
+        stopPolling();
+        setStatus(data.error || data.message || "Conversion failed.", "error");
+        convertBtn.disabled = false;
+        safeConvertBtn.disabled = false;
+        return true;
+      }
+
+      return false;
+    }
+
+    checkBtn.addEventListener("click", async () => {
+      await checkUrl();
+    });
+
+    tabUrl.addEventListener("click", () => switchTab("url"));
+    tabSafe.addEventListener("click", () => switchTab("safe"));
+    tabUpload.addEventListener("click", () => switchTab("upload"));
+    safetyCheckBtn.addEventListener("click", async () => await runSafetyCheck());
+    safeConvertBtn.addEventListener("click", async () => await safeDownload());
+    uploadBtn.addEventListener("click", async () => await uploadVideo());
+
+    urlInput.addEventListener("input", () => {
+      if (convertBtn.disabled === false) {
+        urlStatus.textContent = "";
+        urlStatus.className = "";
+        convertBtn.disabled = true;
+      }
+    });
+
+    safeUrlInput.addEventListener("input", () => {
+      if (safeConvertBtn.disabled === false) {
+        safetyStatus.textContent = "";
+        safetyStatus.className = "";
+        safeConvertBtn.disabled = true;
+      }
+    });
+
+    convertBtn.addEventListener("click", async () => {
+      const url = (urlInput.value || "").trim();
+      if (!url) {
+        setStatus("Paste a media URL first.", "error");
+        urlInput.focus();
+        return;
+      }
+
+      stopPolling();
+      resultEl.classList.remove("visible");
+      resultEl.style.display = "none";
+      convertBtn.disabled = true;
+      setProgress(0, "Starting…", "queued");
+      setStatus("Starting job…");
+
+      try {
+        const res = await fetch("/convert/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(formatDetail(data, res.status));
+
+        const jobId = data.job_id;
+        if (!jobId) throw new Error("Server did not return a job id.");
+
+        await pollJob(jobId);
+        pollTimer = setInterval(async () => {
+          try {
+            const done = await pollJob(jobId);
+            if (done) stopPolling();
+          } catch (err) {
+            stopPolling();
+            setStatus(err.message || String(err), "error");
+            convertBtn.disabled = false;
+          }
+        }, 1000);
+      } catch (err) {
+        stopPolling();
+        hideProgress();
+        setStatus(err.message || String(err), "error");
+        convertBtn.disabled = false;
+      }
+    });
+
+    urlInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") convertBtn.click();
+    });
+
+    // Theme toggle
+    const themeToggle = document.getElementById("themeToggle");
+
+    function currentTheme() {
+      return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      try { localStorage.setItem("burn-theme", theme); } catch (_) {}
+      themeToggle.setAttribute(
+        "aria-label",
+        theme === "light" ? "Switch to dark theme" : "Switch to light theme"
+      );
+    }
+
+    themeToggle.addEventListener("click", () => {
+      applyTheme(currentTheme() === "light" ? "dark" : "light");
+    });
+    applyTheme(currentTheme());
+
+    // Entrance + ambient motion (GSAP)
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (window.gsap && !reduceMotion) {
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+      tl.from(".brand-mark", { opacity: 0, y: 24, duration: 0.7 })
+        .from(".lede", { opacity: 0, y: 16, duration: 0.55 }, "-=0.35")
+        .from(".composer", { opacity: 0, y: 18, duration: 0.55 }, "-=0.3")
+        .from(".step", { opacity: 0, y: 10, duration: 0.4, stagger: 0.05 }, "-=0.25")
+        .from(".advanced", { opacity: 0, duration: 0.4 }, "-=0.2");
+
+      gsap.to("#blobA", {
+        x: 40, y: 30, scale: 1.08,
+        duration: 14, repeat: -1, yoyo: true, ease: "sine.inOut",
+      });
+      gsap.to("#blobB", {
+        x: -50, y: -20, scale: 1.12,
+        duration: 18, repeat: -1, yoyo: true, ease: "sine.inOut",
+      });
+      gsap.to("#blobC", {
+        x: 30, y: -40,
+        duration: 16, repeat: -1, yoyo: true, ease: "sine.inOut",
+      });
+    }
+
+    refreshHealth();
+  </script>
+</body>
+</html>

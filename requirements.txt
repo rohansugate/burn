@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+openai-whisper
+yt-dlp
+ffmpeg-python
+python-multipart
+playwright
+playwright-stealth
+requests

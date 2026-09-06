@@ -1,0 +1,32 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Local downloads, burns, and job leftovers
+tmp/*
+!tmp/.gitkeep
+processed_videos/*
+!processed_videos/.gitkeep
+*.mp4
+*.mkv
+*.webm
+*.mov
+*.avi
+*.m4v
+*.mp3
+*.wav
+*.m4a
+*.part
+*.srt
+*.vtt
+
+# Session cookies, browser profile path, and anything else written locally
+data/*
+!data/.gitkeep
+*.cookies
+.env
+.env.*
+
+# macOS / local tooling
+.DS_Store
+.kilo/
