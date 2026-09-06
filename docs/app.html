@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Burn — Run in browser</title>
+  <meta name="description" content="Translate speech to English and burn captions into a video, entirely in your browser." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Syne:wght@500;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #14110e;
+      --paper: #f3ebe0;
+      --paper-dim: #c9bba8;
+      --muted: #8a7d6c;
+      --line: rgba(243, 235, 224, 0.14);
+      --line-strong: rgba(243, 235, 224, 0.22);
+      --ember: #e07a3a;
+      --ember-hot: #f0a05a;
+      --ember-glow: rgba(224, 122, 58, 0.35);
+      --ok: #6dbf8a;
+      --err: #e06b6b;
+      --field: rgba(20, 17, 14, 0.55);
+      --track-bg: rgba(243, 235, 224, 0.08);
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      color: var(--paper);
+      background: var(--ink);
+      overflow-x: hidden;
+    }
+    .atmosphere { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: var(--ink); }
+    .blob { position: absolute; border-radius: 50%; filter: blur(80px); }
+    .blob-a { width: min(70vw, 640px); height: min(70vw, 640px); top: -18%; left: -12%; background: radial-gradient(circle, #c45a28 0%, transparent 68%); opacity: 0.55; }
+    .blob-b { width: min(55vw, 520px); height: min(55vw, 520px); top: 28%; right: -18%; background: radial-gradient(circle, #3a5a6e 0%, transparent 70%); opacity: 0.4; }
+    .blob-c { width: min(45vw, 420px); height: min(45vw, 420px); bottom: -12%; left: 28%; background: radial-gradient(circle, #8b4518 0%, transparent 65%); opacity: 0.35; }
+    .grain {
+      position: absolute; inset: 0; opacity: 0.07;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px; mix-blend-mode: overlay;
+    }
+    .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 70% at 50% 40%, transparent 20%, rgba(10, 8, 6, 0.75) 100%); }
+    .shell { position: relative; z-index: 1; max-width: 560px; margin: 0 auto; padding: clamp(24px, 5vw, 56px) 20px 80px; }
+    nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 36px; }
+    .brand-mark { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+    .brand-icon { width: 36px; height: 36px; }
+    .brand-word { font-family: "Syne", sans-serif; font-weight: 800; font-size: 1.35rem; letter-spacing: -0.04em; }
+    .brand-word em { font-family: "Instrument Serif", serif; font-style: italic; font-weight: 400; color: var(--ember-hot); }
+    .nav-link { color: var(--paper-dim); text-decoration: none; font-size: 0.88rem; font-weight: 600; }
+    .nav-link:hover { color: var(--paper); }
+    h1 {
+      font-family: "Syne", sans-serif; font-weight: 800;
+      font-size: clamp(2.2rem, 8vw, 3.4rem); letter-spacing: -0.045em; line-height: 0.92; margin-bottom: 12px;
+    }
+    h1 em { font-family: "Instrument Serif", serif; font-style: italic; font-weight: 400; color: var(--ember-hot); }
+    .lede { color: var(--paper-dim); line-height: 1.5; max-width: 42ch; margin-bottom: 22px; }
+    .hint { font-size: 0.82rem; color: var(--muted); line-height: 1.45; margin-bottom: 18px; }
+    .hint a { color: var(--ember-hot); }
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab {
+      appearance: none; border: 1px solid var(--line-strong); background: var(--field);
+      color: var(--paper-dim); border-radius: 10px; padding: 10px 16px;
+      font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+    }
+    .tab.active {
+      background: linear-gradient(135deg, var(--ember-hot) 0%, var(--ember) 55%, #c45a28 100%);
+      color: #1a1008; border-color: transparent;
+    }
+    .panel { display: none; flex-direction: column; gap: 12px; }
+    .panel.active { display: flex; }
+    label { font-size: 0.78rem; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    input[type="url"], input[type="file"] {
+      width: 100%; appearance: none; border: 1px solid var(--line-strong); background: var(--field);
+      color: var(--paper); border-radius: 14px; padding: 16px 18px; font-family: inherit; font-size: 1rem;
+    }
+    input[type="url"]:focus { outline: none; border-color: var(--ember); box-shadow: 0 0 0 3px var(--ember-glow); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .btn {
+      appearance: none; border: 0; font-family: "Syne", sans-serif; font-weight: 700; font-size: 0.95rem;
+      cursor: pointer; border-radius: 12px; padding: 15px 22px; text-decoration: none; display: inline-block;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      flex: 1; min-width: 180px;
+      background: linear-gradient(135deg, var(--ember-hot) 0%, var(--ember) 55%, #c45a28 100%);
+      color: #1a1008; box-shadow: 0 8px 28px rgba(224, 122, 58, 0.28);
+    }
+    .btn-ghost { background: transparent; color: var(--paper-dim); border: 1px solid var(--line-strong); }
+    .pipeline { margin-top: 28px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .step { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .step-bar { height: 3px; border-radius: 999px; background: var(--line); overflow: hidden; position: relative; }
+    .step-bar::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(90deg, var(--ember), var(--ember-hot));
+      transform: scaleX(0); transform-origin: left; transition: transform 0.45s var(--ease);
+    }
+    .step.active .step-bar::after { transform: scaleX(0.55); animation: pulse-fill 1.4s ease-in-out infinite; }
+    .step.done .step-bar::after { transform: scaleX(1); animation: none; }
+    @keyframes pulse-fill { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+    .step-label { font-size: 0.68rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+    .step.active .step-label, .step.done .step-label { color: var(--paper); }
+    .feedback { margin-top: 22px; }
+    #status { font-size: 0.92rem; line-height: 1.45; color: var(--paper-dim); min-height: 1.4em; }
+    #status.error { color: var(--err); }
+    #status.ok { color: var(--ok); }
+    .progress-wrap { display: none; margin-top: 14px; }
+    .progress-wrap.visible { display: block; }
+    .progress-meta { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: 0.82rem; color: var(--muted); }
+    .progress-meta strong { font-family: "Syne", sans-serif; color: var(--paper); font-variant-numeric: tabular-nums; }
+    .progress-track { height: 8px; border-radius: 999px; background: var(--track-bg); border: 1px solid var(--line); overflow: hidden; }
+    .progress-fill {
+      height: 100%; width: 0%; border-radius: 999px;
+      background: linear-gradient(90deg, var(--ember) 0%, var(--ember-hot) 50%, #6dbf8a 100%);
+      transition: width 0.35s var(--ease);
+    }
+    #previewWrap { display: none; margin-top: 18px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #000; }
+    #previewWrap.visible { display: block; }
+    #preview { display: block; width: 100%; height: auto; }
+    #result { display: none; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+    #result.visible { display: block; }
+    #result a {
+      font-family: "Syne", sans-serif; font-weight: 700; font-size: 1.05rem;
+      color: var(--paper); text-decoration: none;
+    }
+    #result a:hover { color: var(--ember-hot); }
+    #result span { display: block; font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ok); font-weight: 600; margin-bottom: 4px; }
+    @media (max-width: 520px) { .pipeline { grid-template-columns: repeat(3, 1fr); } }
+  </style>
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true">
+    <div class="blob blob-a"></div>
+    <div class="blob blob-b"></div>
+    <div class="blob blob-c"></div>
+    <div class="grain"></div>
+    <div class="vignette"></div>
+  </div>
+
+  <div class="shell">
+    <nav>
+      <a class="brand-mark" href="./">
+        <svg class="brand-icon" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <rect x="4" y="8" width="32" height="24" rx="3" stroke="#f0a05a" stroke-width="1.5" opacity="0.9"/>
+          <path d="M10 20h20M14 15v10M26 15v10" stroke="#f3ebe0" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="20" cy="20" r="3.5" fill="#e07a3a"/>
+        </svg>
+        <span class="brand-word">Burn<em>.</em></span>
+      </a>
+      <a class="nav-link" href="https://github.com/rohansugate/burn">GitHub</a>
+    </nav>
+
+    <h1>Run it <em>here</em>.</h1>
+    <p class="lede">Upload a video. Whisper translates speech to English in your browser, then captions are burned into the picture. Nothing is uploaded to a server.</p>
+    <p class="hint">First run downloads a small speech model (~75&nbsp;MB). Short clips work best. For YouTube-style links or long files, <a href="https://github.com/rohansugate/burn#run">run the local app</a>.</p>
+
+    <div class="tabs">
+      <button type="button" class="tab active" data-tab="upload">Upload</button>
+      <button type="button" class="tab" data-tab="url">URL</button>
+    </div>
+
+    <div class="panel active" id="panelUpload">
+      <label for="file">Video file</label>
+      <input id="file" type="file" accept="video/*,.mp4,.webm,.mov,.mkv,.m4v" />
+    </div>
+    <div class="panel" id="panelUrl">
+      <label for="url">Direct media URL</label>
+      <input id="url" type="url" placeholder="https://…/video.mp4" autocomplete="off" spellcheck="false" />
+      <p class="hint">Most sites block browser downloads (CORS). A direct <code>.mp4</code> / <code>.webm</code> link may work. Paste-a-page links need the local app.</p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="runBtn">Burn subtitles</button>
+    </div>
+
+    <nav class="pipeline" id="pipeline" aria-label="Processing stages">
+      <div class="step" data-stage="verify"><div class="step-bar"></div><span class="step-label">Verify</span></div>
+      <div class="step" data-stage="fetch"><div class="step-bar"></div><span class="step-label">Fetch</span></div>
+      <div class="step" data-stage="audio"><div class="step-bar"></div><span class="step-label">Audio</span></div>
+      <div class="step" data-stage="translate"><div class="step-bar"></div><span class="step-label">Translate</span></div>
+      <div class="step" data-stage="burn"><div class="step-bar"></div><span class="step-label">Burn</span></div>
+    </nav>
+
+    <div class="feedback">
+      <p id="status">Ready when you are.</p>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-meta">
+          <span id="progressStage">Working…</span>
+          <strong id="progressPct">0%</strong>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+    </div>
+
+    <div id="previewWrap"><canvas id="preview"></canvas></div>
+
+    <div id="result">
+      <span>Ready</span>
+      <a id="downloadLink" href="#" download="burn-subtitles.webm">Download subtitled video</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
+
+    env.allowLocalModels = false;
+    env.useBrowserCache = true;
+
+    const tabs = document.querySelectorAll(".tab");
+    const panelUpload = document.getElementById("panelUpload");
+    const panelUrl = document.getElementById("panelUrl");
+    const fileInput = document.getElementById("file");
+    const urlInput = document.getElementById("url");
+    const runBtn = document.getElementById("runBtn");
+    const statusEl = document.getElementById("status");
+    const progressWrap = document.getElementById("progressWrap");
+    const progressFill = document.getElementById("progressFill");
+    const progressPct = document.getElementById("progressPct");
+    const progressStage = document.getElementById("progressStage");
+    const previewWrap = document.getElementById("previewWrap");
+    const preview = document.getElementById("preview");
+    const resultEl = document.getElementById("result");
+    const downloadLink = document.getElementById("downloadLink");
+    const steps = [...document.querySelectorAll(".step")];
+
+    let transcriber = null;
+    let mode = "upload";
+    let resultUrl = null;
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        mode = tab.dataset.tab;
+        tabs.forEach((t) => t.classList.toggle("active", t === tab));
+        panelUpload.classList.toggle("active", mode === "upload");
+        panelUrl.classList.toggle("active", mode === "url");
+      });
+    });
+
+    function setStatus(text, kind) {
+      statusEl.textContent = text;
+      statusEl.classList.toggle("error", kind === "error");
+      statusEl.classList.toggle("ok", kind === "ok");
+    }
+
+    function setProgress(stage, pct) {
+      progressWrap.classList.add("visible");
+      progressStage.textContent = stage;
+      const n = Math.max(0, Math.min(100, Math.round(pct)));
+      progressFill.style.width = n + "%";
+      progressPct.textContent = n + "%";
+    }
+
+    function setPipeline(active) {
+      const order = ["verify", "fetch", "audio", "translate", "burn"];
+      const idx = order.indexOf(active);
+      steps.forEach((el) => {
+        const i = order.indexOf(el.dataset.stage);
+        el.classList.toggle("active", i === idx);
+        el.classList.toggle("done", i < idx);
+      });
+    }
+
+    function finishPipeline() {
+      steps.forEach((el) => {
+        el.classList.remove("active");
+        el.classList.add("done");
+      });
+    }
+
+    async function fileFromUrl(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Could not download that URL (" + res.status + ").");
+      const blob = await res.blob();
+      const name = (url.split("/").pop() || "video.mp4").split("?")[0] || "video.mp4";
+      return new File([blob], name, { type: blob.type || "video/mp4" });
+    }
+
+    function resampleMono16k(buffer) {
+      const rate = buffer.sampleRate;
+      const length = buffer.length;
+      const channels = buffer.numberOfChannels;
+      const mixed = new Float32Array(length);
+      for (let c = 0; c < channels; c++) {
+        const data = buffer.getChannelData(c);
+        for (let i = 0; i < length; i++) mixed[i] += data[i] / channels;
+      }
+      if (rate === 16000) return mixed;
+      const outLen = Math.max(1, Math.round(length * 16000 / rate));
+      const out = new Float32Array(outLen);
+      const ratio = length / outLen;
+      for (let i = 0; i < outLen; i++) {
+        const x = i * ratio;
+        const i0 = Math.floor(x);
+        const i1 = Math.min(length - 1, i0 + 1);
+        const t = x - i0;
+        out[i] = mixed[i0] * (1 - t) + mixed[i1] * t;
+      }
+      return out;
+    }
+
+    async function extractAudio(file) {
+      const ctx = new AudioContext();
+      const raw = await file.arrayBuffer();
+      const copy = raw.slice(0);
+      let decoded;
+      try {
+        decoded = await ctx.decodeAudioData(copy);
+      } catch {
+        throw new Error("Could not read audio from this file. Try an MP4 or WebM, or use the local app.");
+      }
+      await ctx.close();
+      if (!decoded.length) throw new Error("This video has no usable audio.");
+      return resampleMono16k(decoded);
+    }
+
+    function cuesFromWhisper(output) {
+      const chunks = output.chunks || [];
+      const cues = [];
+      for (const chunk of chunks) {
+        const text = String(chunk.text || "").trim();
+        if (!text) continue;
+        const ts = chunk.timestamp || [0, 0];
+        const start = Number(ts[0] ?? 0);
+        let end = ts[1] == null ? start + 2 : Number(ts[1]);
+        if (end <= start) end = start + 0.8;
+        cues.push({ start, end, text });
+      }
+      if (!cues.length && output.text) {
+        cues.push({ start: 0, end: 4, text: String(output.text).trim() });
+      }
+      return cues;
+    }
+
+    function wrapText(ctx, text, maxWidth) {
+      const words = text.split(/\s+/);
+      const lines = [];
+      let line = "";
+      for (const word of words) {
+        const test = line ? line + " " + word : word;
+        if (ctx.measureText(test).width > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      return lines.slice(0, 3);
+    }
+
+    function cueAt(cues, t) {
+      for (let i = 0; i < cues.length; i++) {
+        if (t >= cues[i].start && t < cues[i].end) return cues[i];
+      }
+      return null;
+    }
+
+    function pickMime() {
+      const types = [
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm",
+        "video/mp4",
+      ];
+      return types.find((t) => MediaRecorder.isTypeSupported(t)) || "";
+    }
+
+    async function burnCaptions(file, cues, onProgress) {
+      const video = document.createElement("video");
+      video.playsInline = true;
+      video.preload = "auto";
+      video.src = URL.createObjectURL(file);
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = () => resolve();
+        video.onerror = () => reject(new Error("Could not play this video in the browser."));
+      });
+
+      const srcW = video.videoWidth || 640;
+      const srcH = video.videoHeight || 360;
+      const scale = Math.min(1, 1280 / srcW);
+      const w = Math.max(2, Math.round(srcW * scale / 2) * 2);
+      const h = Math.max(2, Math.round(srcH * scale / 2) * 2);
+
+      preview.width = w;
+      preview.height = h;
+      previewWrap.classList.add("visible");
+      const ctx = preview.getContext("2d");
+
+      const canvasStream = preview.captureStream(30);
+      let mixed = canvasStream;
+      video.muted = false;
+      video.volume = 1;
+      try {
+        const capture = video.captureStream ? video.captureStream() : video.webkitCaptureStream();
+        const audio = capture.getAudioTracks();
+        if (audio.length) mixed = new MediaStream([...canvasStream.getVideoTracks(), audio[0]]);
+      } catch {
+        /* video-only output if audio capture is blocked */
+      }
+
+      const mime = pickMime();
+      const recorder = new MediaRecorder(mixed, mime ? { mimeType: mime, videoBitsPerSecond: 2500000 } : { videoBitsPerSecond: 2500000 });
+      const chunks = [];
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+
+      const stopped = new Promise((resolve, reject) => {
+        recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType || "video/webm" }));
+        recorder.onerror = () => reject(new Error("Recording failed."));
+      });
+
+      function drawFrame() {
+        ctx.drawImage(video, 0, 0, w, h);
+        const cue = cueAt(cues, video.currentTime || 0);
+        if (cue) {
+          const fontSize = Math.max(18, Math.round(h * 0.048));
+          ctx.font = `600 ${fontSize}px "DM Sans", system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          const lines = wrapText(ctx, cue.text, w * 0.86);
+          const lineH = fontSize * 1.28;
+          const yBase = h - Math.round(h * 0.06);
+          lines.forEach((ln, i) => {
+            const y = yBase - (lines.length - 1 - i) * lineH;
+            ctx.lineJoin = "round";
+            ctx.miterLimit = 2;
+            ctx.lineWidth = Math.max(4, fontSize / 5);
+            ctx.strokeStyle = "rgba(0,0,0,0.88)";
+            ctx.fillStyle = "#fff";
+            ctx.strokeText(ln, w / 2, y);
+            ctx.fillText(ln, w / 2, y);
+          });
+        }
+        if (video.duration) onProgress((video.currentTime / video.duration) * 100);
+      }
+
+      await video.play();
+      recorder.start(250);
+
+      await new Promise((resolve) => {
+        const tick = () => {
+          if (video.ended) {
+            drawFrame();
+            resolve();
+            return;
+          }
+          drawFrame();
+          if ("requestVideoFrameCallback" in video) video.requestVideoFrameCallback(tick);
+          else requestAnimationFrame(tick);
+        };
+        video.onended = () => resolve();
+        tick();
+      });
+
+      if (recorder.state !== "inactive") recorder.stop();
+      const blob = await stopped;
+      URL.revokeObjectURL(video.src);
+      return blob;
+    }
+
+    async function ensureModel(onProgress) {
+      if (transcriber) return transcriber;
+      transcriber = await pipeline("automatic-speech-recognition", "Xenova/whisper-tiny", {
+        progress_callback: (data) => {
+          if (data.status === "progress" && data.total) {
+            onProgress((data.loaded / data.total) * 100);
+          }
+        },
+      });
+      return transcriber;
+    }
+
+    runBtn.addEventListener("click", async () => {
+      resultEl.classList.remove("visible");
+      previewWrap.classList.remove("visible");
+      if (resultUrl) URL.revokeObjectURL(resultUrl);
+      resultUrl = null;
+      runBtn.disabled = true;
+
+      try {
+        setPipeline("verify");
+        setProgress("Verify", 4);
+        setStatus("Loading the video…");
+
+        let file = null;
+        if (mode === "upload") {
+          file = fileInput.files && fileInput.files[0];
+          if (!file) throw new Error("Choose a video file first.");
+          setPipeline("fetch");
+          setProgress("Ready", 12);
+        } else {
+          const url = urlInput.value.trim();
+          if (!url) throw new Error("Paste a direct media URL first.");
+          setPipeline("fetch");
+          setStatus("Fetching the file in your browser…");
+          setProgress("Fetch", 8);
+          try {
+            file = await fileFromUrl(url);
+          } catch {
+            throw new Error(
+              "This URL cannot be fetched from the website (usually CORS). Upload the file instead, or run the local app to paste page links."
+            );
+          }
+          setProgress("Fetch", 18);
+        }
+
+        if (file.size > 180 * 1024 * 1024) {
+          throw new Error("This browser demo works best under ~180 MB. Use the local app for larger files.");
+        }
+
+        setPipeline("audio");
+        setStatus("Extracting audio…");
+        setProgress("Audio", 22);
+        const audio = await extractAudio(file);
+        setProgress("Audio", 32);
+
+        setPipeline("translate");
+        setStatus("Loading Whisper in your browser (first time can take a minute)…");
+        const model = await ensureModel((pct) => {
+          setProgress("Loading model", 32 + pct * 0.18);
+        });
+        setStatus("Translating speech to English…");
+        setProgress("Translate", 52);
+        const output = await model(audio, {
+          task: "translate",
+          return_timestamps: true,
+          chunk_length_s: 30,
+          stride_length_s: 5,
+        });
+        const cues = cuesFromWhisper(output);
+        if (!cues.length) throw new Error("No speech was detected.");
+        setProgress("Translate", 72);
+
+        setPipeline("burn");
+        setStatus("Burning captions — this plays through the video once.");
+        const blob = await burnCaptions(file, cues, (pct) => {
+          setProgress("Burn", 72 + pct * 0.27);
+        });
+
+        finishPipeline();
+        setProgress("Done", 100);
+        resultUrl = URL.createObjectURL(blob);
+        const ext = (blob.type || "").includes("mp4") ? "mp4" : "webm";
+        downloadLink.href = resultUrl;
+        downloadLink.download = "burn-subtitles." + ext;
+        resultEl.classList.add("visible");
+        setStatus("Done. Captions were burned in your browser.", "ok");
+      } catch (err) {
+        setStatus(err && err.message ? err.message : "Something went wrong.", "error");
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

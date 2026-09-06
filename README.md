@@ -1,10 +1,24 @@
 # Burn
 
-**Project site:** [https://rohansugate.github.io/burn](https://rohansugate.github.io/burn)
+**Project site:** [https://rohansugate.github.io/burn](https://rohansugate.github.io/burn)  
+**Run in browser:** [https://rohansugate.github.io/burn/app.html](https://rohansugate.github.io/burn/app.html)
 
-A local web app that takes a video URL or a file from your computer, translates the speech to English, and burns those captions into the picture.
+A web app that takes a video URL or a file, translates the speech to English, and burns those captions into the picture. You can try an in-browser demo on the project site, or run the full pipeline locally.
 
-Paste a link, wait through verify → fetch → audio → translate → burn, then download the subtitled file. Nothing is uploaded to a hosted service; processing runs on your machine.
+Paste a link, wait through verify → fetch → audio → translate → burn, then download the subtitled file.
+
+## Run in the browser
+
+Open **[https://rohansugate.github.io/burn/app.html](https://rohansugate.github.io/burn/app.html)**, upload a video, and Burn will:
+
+1. Extract audio in your tab
+2. Translate speech to English with Whisper (downloaded into the browser)
+3. Burn captions onto the picture
+4. Let you download the result
+
+Your file stays on your computer — it is not uploaded to GitHub or any server. The first visit downloads a small model (~75 MB). Short clips work best.
+
+Browsers cannot fetch most website video pages (CORS), so paste-a-link for YouTube-style URLs still needs the local app below.
 
 ## What it does
 
