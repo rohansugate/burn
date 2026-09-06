@@ -231,6 +231,15 @@
       margin-bottom: 14px;
     }
 
+    h3 {
+      font-family: "Syne", sans-serif;
+      font-weight: 700;
+      font-size: 1.02rem;
+      letter-spacing: -0.02em;
+      margin: 22px 0 10px;
+      color: var(--ember-hot);
+    }
+
     p, li {
       color: var(--paper-dim);
       line-height: 1.55;
@@ -327,12 +336,39 @@
     </section>
 
     <section>
-      <h2>Run it</h2>
+      <h2>Install locally</h2>
+      <p>Get the code with Git, or download the ZIP from GitHub (<a href="https://github.com/rohansugate/burn/archive/refs/heads/main.zip" style="color: var(--ember-hot)">main.zip</a>).</p>
       <pre>git clone https://github.com/rohansugate/burn.git
-cd burn
-chmod +x start.sh
+cd burn</pre>
+
+      <h3>macOS</h3>
+      <pre>brew install python git ffmpeg-full
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+playwright install chromium
 ./start.sh</pre>
-      <p class="note" style="margin-top:14px">Needs Python 3.11+, FFmpeg with libass, and Playwright Chromium. Full setup is in the README.</p>
+
+      <h3>Linux</h3>
+      <p class="note">Ubuntu/Debian shown. Fedora: <code>sudo dnf install python3 python3-pip git ffmpeg</code>. Arch: <code>sudo pacman -S python git ffmpeg</code>.</p>
+      <pre>sudo apt update
+sudo apt install -y python3 python3-venv python3-pip git ffmpeg
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+playwright install chromium
+./start.sh</pre>
+
+      <h3>Windows</h3>
+      <p class="note">Install Python from python.org (tick Add to PATH), then FFmpeg. In PowerShell:</p>
+      <pre>winget install -e --id Gyan.FFmpeg
+py -3 -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+playwright install chromium
+.\start.cmd</pre>
+
+      <p class="note" style="margin-top:14px">Then open <a href="http://127.0.0.1:8000" style="color: var(--ember-hot)">http://127.0.0.1:8000</a>. FFmpeg must include libass (the <code>subtitles</code> filter). Full notes for each OS are in the <a href="https://github.com/rohansugate/burn#install-by-operating-system" style="color: var(--ember-hot)">README</a>.</p>
     </section>
 
     <footer>
