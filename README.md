@@ -1,7 +1,11 @@
 # Burn
 
-**Project site:** [https://rohansugate.github.io/burn](https://rohansugate.github.io/burn)  
-**Run in browser:** [https://rohansugate.github.io/burn/app.html](https://rohansugate.github.io/burn/app.html)
+<p align="center">
+  <a href="https://rohansugate.github.io/burn/app.html"><img src="https://img.shields.io/badge/▶_Run_in_browser-live-e07a3a?style=for-the-badge" alt="Run in browser" /></a>
+  <a href="https://rohansugate.github.io/burn"><img src="https://img.shields.io/badge/Project_site-rohansugate.github.io-1c1814?style=for-the-badge" alt="Project site" /></a>
+</p>
+
+**Run it now:** [https://rohansugate.github.io/burn/app.html](https://rohansugate.github.io/burn/app.html)
 
 A web app that takes a video URL or a file, translates the speech to English, and burns those captions into the picture. You can try an in-browser demo on the project site, or run the full pipeline locally.
 
